@@ -1,9 +1,9 @@
 /*
 
-  增强B站收藏夹
+  转发抽奖工具
 
 */
-const europeanSet = {
+var europeanSet = {
   loopNumOnload: 0,
   loopNumOnloadMax: 20,
   timerOnload: null,
@@ -28,7 +28,7 @@ const europeanSet = {
   defaultAtNum: 0,
   mod: true,
   atNumArr: [],
-  atNumReg: eval(/<?a href="\/\/space\.bilibili\.com\/\d+\/dynamic"[^<>]*>\@([^<>@]*)<\/a>/ig)
+  atNumReg: /<?a href="\/\/space\.bilibili\.com\/\d+\/dynamic"[^<>]*>\@([^<>@]*)<\/a>/ig
 }
 
 chrome = chrome || browser;
@@ -55,26 +55,25 @@ europeanSet.timerOnload = setInterval(function(){
 
 function europeanShow()
 {
-  var europeanShowHTML =`
-    <div id="europeanPage">
-      <a href="javascript:void(0);" class="BtoolsLogoBtn">${Btools.logo()}</a>
-      <div class="europeanStartPage">
-        <p class="europeanUserArrLength">人数：<span>--</span></p>
-        <p class="europeanBtn">
-          <a id="europeanStartBtn" href="javascript:void(0);">开始</a>
-          <a id="europeanThisShitBtn" href="javascript:void(0);">就四李啦！</a>
-          <a id="europeanEndBtn" href="javascript:void(0);">结束抽奖</a>
-        </p>
-        <p class="europeanAutoLoadProgressBar"></p>
-        <div id="europeanUserArr"><p class="europeanUser"></p></div>
-        <div class="europeanWinners"></div>
-        <p class="europeanAtSet"><input type="number" value="0"></p>
-        <p class="europeanAddUser"><input type="text" placeholder="手动添加"><a href="javascript:void(0);">添加</a></p>
-        <div class="europeanAddUserArr"></div>
-      </div>
-      <div class="europeanPageBG"></div>
-    </div>
-    `;
+  var europeanShowHTML =
+    '<div id="europeanPage">'+
+      '<a href="javascript:void(0);" class="BtoolsLogoBtn">' + Btools.logo() + '</a>'+
+      '<div class="europeanStartPage">'+
+        '<p class="europeanUserArrLength">人数：<span>--</span></p>'+
+        '<p class="europeanBtn">'+
+          '<a id="europeanStartBtn" href="javascript:void(0);">开始</a>'+
+          '<a id="europeanThisShitBtn" href="javascript:void(0);">就四李啦！</a>'+
+          '<a id="europeanEndBtn" href="javascript:void(0);">结束抽奖</a>'+
+        '</p>'+
+        '<p class="europeanAutoLoadProgressBar"></p>'+
+        '<div id="europeanUserArr"><p class="europeanUser"></p></div>'+
+        '<div class="europeanWinners"></div>'+
+        '<p class="europeanAtSet"><input type="number" value="0"></p>'+
+        '<p class="europeanAddUser"><input type="text" placeholder="手动添加"><a href="javascript:void(0);">添加</a></p>'+
+        '<div class="europeanAddUserArr"></div>'+
+      '</div>'+
+      '<div class="europeanPageBG"></div>'
+    '</div>';
 
   $('body').append(europeanShowHTML);
 
@@ -87,7 +86,7 @@ function europeanShow()
     {
       key: 82,
       title: '转发抽奖',
-      action: () => {
+      action: function() {
         if($('.europeanStartPage').is(':hidden')) {
           $('.europeanStartPage,.europeanPageBG').show().css({
             'width': $(window).width(),
@@ -96,7 +95,16 @@ function europeanShow()
 
           if(europeanSet.userArr.length !== 0) return false;
           if(europeanSet.autoLoadTimer === null) {
-            $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">正在加载</font>');
+            var stopLoadding = !europeanSet.mod ? '<a class="europeanStopLoadding" href="javascript:void(0);">停止加载</a>' : '';
+            $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">正在加载</font>' + stopLoadding);
+            $('.europeanStopLoadding').click(function() {
+              domModAddUser();
+              $('#europeanUserArr .europeanUser').html('');
+              clearInterval(europeanSet.autoLoadTimer);
+              europeanSet.autoLoadTimer = null;
+              btnCtrl(true);
+            });
+
             europeanSet.autoLoadTimer = setInterval(function(){
               autoLoad();
               europeanSet.autoLoadNum++;
@@ -172,7 +180,7 @@ function europeanShow()
     if(europeanSet.defaultAtNum === 0) {
       europeanSet.userAtArr = europeanSet.userArr;
     } else {
-      europeanSet.userArr.forEach((item, index) => {
+      europeanSet.userArr.forEach(function(item, index) {
         if(europeanSet.mod) {
           if(item.uAt >= europeanSet.defaultAtNum) {
             europeanSet.userAtArr.push(item);
@@ -195,6 +203,8 @@ function europeanShow()
       var user = europeanSet.userAtArr[europeanSet.loopNum];
 
       resetLoopNum();
+
+      if(user === undefined) return;
 
       var europeanUserHTML = '<span style="background:transparent url(\'' + user.uFace + '\') no-repeat scroll 0 0 / 30px 30px;"></span><a class="europeanUName" href="javascript:void(0);">' + user.uName + '</a>';
       $('#europeanUserArr .europeanUser').html(europeanUserHTML);
@@ -260,7 +270,7 @@ function europeanShow()
     $('.europeanUserArrLength span').text('--');
     $('#europeanUserArr .europeanUser').html('');
 
-    makeExcel();
+    makeCSV();
 
     clearInterval(europeanSet.timer);
   });
@@ -304,105 +314,96 @@ function autoLoad() {
     var progressBarNum = loadNum / europeanSet.Alleuropeans * 100;
     $('.europeanAutoLoadProgressBar').css({'width': progressBarNum + '%'});
 
-    if($('.forw-more .nomore').length !== 0)
-      {
-        if($('.forw-list .dynamic-list-item-wrap').length !== europeanSet.Alleuropeans) {
-          $('#europeanUserArr .europeanUser').html(`<font class="europeanUserMsg">到达加载极限，未全部加载完成</font>`);
-        } else {
-          $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">加载完成！</font>');
-        }
-        $('.europeanAutoLoadProgressBar').css({'width': '100%'});
-        $('html,body').scrollTop('0');
-        btnCtrl(true);
-        $('.forw-list .dynamic-list-item-wrap').each(function() {
-          var userMid = /com\/(\d*)\//g.exec($(this).find('.forw-face:eq(0) .c-pointer:eq(0)').attr('href'))[1];
-          var uData = {
-            uID: null,
-            uName: $(this).find('.item-detail:eq(0) .item-user:eq(0) a.user-name:eq(0)').text(),
-        		uFace: $(this).find('.forw-face:eq(0) .c-pointer:eq(0) .forw-head:eq(0)').attr('src'),
-        		uSpace: 'https://space.bilibili.com/' + userMid,
-            uMsg: 'https://message.bilibili.com/#/whisper/mid' + userMid,
-            uCom: $(this).find('.item-detail:eq(0) .text:eq(0)').html()
-        	};
-          europeanSet.userArr = uniqueArr(uData, europeanSet.userArr, true);
-        });
-        clearInterval(europeanSet.autoLoadTimer);
-        europeanSet.autoLoadTimer = null;
+    if($('.forw-more .nomore').length !== 0) {
+      if($('.forw-list .dynamic-list-item-wrap').length !== europeanSet.Alleuropeans) {
+        $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">到达加载极限，未全部加载完成</font>');
       } else {
-        if($('.more').length > 0) $('.more')[0].click();
+        $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">加载完成！</font>');
       }
+      $('.europeanAutoLoadProgressBar').css({'width': '100%'});
+      $('html,body').scrollTop('0');
+      btnCtrl(true);
+
+      domModAddUser();
+
+      clearInterval(europeanSet.autoLoadTimer);
+      europeanSet.autoLoadTimer = null;
+    } else {
+      if($('.more').length > 0) $('.more')[0].click();
+      if(progressBarNum === 100) {
+        $('.europeanStopLoadding').show();
+      }
+    }
 
     return false;
   }
   var dynamic_id = /t\.bilibili\.com\/(\d+)\??/i.exec(window.location.href)[1];
-  var url = `https://api.vc.bilibili.com/dynamic_repost/v1/dynamic_repost/view_repost?dynamic_id=${dynamic_id}&offset=${europeanSet.autoLoadOffset}`;
+  var url = 'https://api.vc.bilibili.com/dynamic_repost/v1/dynamic_repost/view_repost?dynamic_id=' + dynamic_id + '&offset=' + europeanSet.autoLoadOffset;
 
-  if(typeof chrome.app.isInstalled !== 'undefined'){
-    chrome.runtime.sendMessage({
-      type: 'fetch',
-      url: url
-    },
-    json => {
-      if(json === null) {
-        if(europeanSet.autoLoadNum / europeanSet.autoLoadMax < 0.5) {
-            $('#europeanUserArr .europeanUser').html(`<font class="europeanUserMsg">网络请求失败 重试 ${europeanSet.autoLoadNum}，请稍等</font>`);
-          } else {
-            europeanSet.mod = false;
-            europeanSet.userAtArr = [];
-            $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">模式切换，正在从前台页面获取数据</font>');
+  chrome.runtime.sendMessage({
+    type: 'fetch',
+    url: url
+  },
+  function(json) {
+    if(json === null) {
+      if(europeanSet.autoLoadNum / europeanSet.autoLoadMax < 0.5) {
+          $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">网络请求失败 重试 ' + europeanSet.autoLoadNum + '，请稍等</font>');
+        } else {
+          europeanSet.mod = false;
+          europeanSet.userAtArr = [];
+          $('#europeanUserArr .europeanUser').html('<font class="europeanUserMsg">模式切换，正在从前台页面获取数据</font>');
+        }
+      return false;
+    }
+
+    if(json.code === 0) {
+      if(europeanSet.autoLoadOffset === 0) {
+        europeanSet.autoLoadMax = json.data.total_count / 20 * 2;
+        europeanSet.Alleuropeans = json.data.total_count;
+      }
+
+      $('.europeanAutoLoadProgressBar').css({
+        'width': (europeanSet.autoLoadNum / europeanSet.autoLoadMax) * 100 + '%'
+      });
+
+      var com = json.data.comments;
+      if(com.length > 0) {
+        json.data.comments.forEach(function(item, index) {
+          var atNum = 0;
+          var atArr = item.ctrl.match(/"data":"\d+","length":\d+,"location":\d+,"type":\d+/g);
+          var uCom = item.comment.split('//@')[0];
+
+          if(uCom !== '' && atArr !== null) {
+            atArr.forEach(function(v, k) {
+              var comReg = /"location":(\d+)/.exec(v);
+              var imgRex = /\[.*\]/.exec(uCom);
+              var imgNum = imgRex !== null ? imgRex.length * 3 : 0;
+              if(comReg.length > 1 && uCom.length - imgNum >= Number(comReg[1])) {
+                atNum++;
+              }
+            });
           }
+
+          var uData = {
+            uID: item.uid,
+            uName: item.uname,
+            uFace: item.face_url,
+            uAt: atNum,
+            uSpace: 'https://space.bilibili.com/' + item.uid,
+            uMsg: 'https://message.bilibili.com/#/whisper/mid' + item.uid
+          };
+          europeanSet.userArr = uniqueArr(uData, europeanSet.userArr, true);
+          $('body').append('<img class="european-read-face" style="width:0" src="' + uData.uFace + '">');
+        });
+      } else {
         return false;
       }
 
-      if(json.code === 0) {
-        if(europeanSet.autoLoadOffset === 0) {
-          europeanSet.autoLoadMax = json.data.total_count / 20 * 2;
-          europeanSet.Alleuropeans = json.data.total_count;
-        }
-
-        $('.europeanAutoLoadProgressBar').css({
-          'width': (europeanSet.autoLoadNum / europeanSet.autoLoadMax) * 100 + '%'
-        });
-
-        var com = json.data.comments;
-        if(com.length > 0) {
-          json.data.comments.forEach((item, index) => {
-            var atNum = 0;
-            var atArr = item.ctrl.match(/"data":"\d+","length":\d+,"location":\d+,"type":\d+/g);
-            var uCom = item.comment.split('//@')[0];
-
-            if(uCom !== '' && atArr !== null) {
-              atArr.forEach((v, k) => {
-                var comReg = /"location":(\d+)/.exec(v);
-                var imgRex = /\[.*\]/.exec(uCom);
-                var imgNum = imgRex !== null ? imgRex.length * 3 : 0;
-                if(comReg.length > 1 && uCom.length - imgNum >= Number(comReg[1])) {
-                  atNum++;
-                }
-              });
-            }
-
-            var uData = {
-              uID: item.uid,
-              uName: item.uname,
-              uFace: item.face_url,
-              uAt: atNum,
-              uSpace: `https://space.bilibili.com/${item.uid}`,
-              uMsg: `https://message.bilibili.com/#/whisper/mid${item.uid}`
-            };
-            europeanSet.userArr = uniqueArr(uData, europeanSet.userArr, true);
-            $('body').append(`<img class="european-read-face" style="width:0" src="${uData.uFace}">`);
-          });
-        } else {
-          return false;
-        }
-
-        if(com.length === 20) {
-          europeanSet.autoLoadOffset += 20;
-        }
+      if(com.length > 0) {
+        europeanSet.autoLoadOffset += com.length;
       }
-    });
-  }
+    }
+  });
 }
 
 function makeUserHTML(u)
@@ -480,11 +481,12 @@ function europeanIsAt(com) {
   } else {
     var text = uTextArr[0];
   }
-  var atNumFlag = text.match(europeanSet.atNumReg);
-  // console.log(atNumFlag);
-  if(atNumFlag !== null) {
-    for(i = 0; i < atNumFlag.length; i++) {
-      europeanSet.atNumArr = uniqueArr(atNumFlag[i], europeanSet.atNumArr, false)
+  var reg = europeanSet.atNumReg;
+  while(atNumArr = reg.exec(text)) {
+    if(atNumArr.length > 1) {
+      europeanSet.atNumArr = uniqueArr(atNumArr[1], europeanSet.atNumArr, false)
+    } else {
+      break;
     }
   }
 
@@ -493,50 +495,63 @@ function europeanIsAt(com) {
   return true;
 }
 
-function makeExcel()
+function makeCSV()
 {
   if(europeanSet.winArr.length === 0) return false;
-  var downloadBtn = '<p class="europeanUser"><span style="border-radius:0;" class="europeanExcelIcon"></span><a class="europeanUName" href="javascript:void(0);">中奖名单已保存到Excel表格</a><a id="europeanExcelDownload" class="europeanUMsg" href="javascript:void(0);" target="_blank">下载TA</a></p>';
-  var table =
-    '<table border="1" cellspacing="0" cellpadding="0">' +
-      '<tr class="thead"><th colspan="4"><a href="' + window.location.href + '">' + europeanSet.upName + ' 的抽奖</a></th></tr>' +
-      '<tr class="theadTitle"><th>排序</th><th>用户ID</th><th>用户名</th><th>空间链接</th><th>联系</th></tr>';
-      $.each(europeanSet.winArr, function(k, v){
-        if(v.uID === null) {
-          var uID = '无(手动添加)';
-          var spaceText = '无(手动添加)';
-          var msgText = '点击搜索';
-        } else {
-          var uID = k.uID;
-          var spaceText = '<a href="' + v.uSpace + '">打开空间</a>';
-          var msgText = '点击私信';
-        }
-        table += `<tr class="theadContent"><td>${k+1}</td><td>${uID}</td><td>${v.uName}</td><td>${spaceText}</td><td><a href="${v.uMsg}">${msgText}</a></td></tr>`;
-      });
-
-  table += '</table>';
-  var html = "<html><head><meta charset='utf-8' /><style>a{text-decoration:none;font-size:20px;font-weight:700;}th,td{text-align:center}.thead th,.thead th a{color:#999;} .theadTitle td{font-weight:700;font-size:26px;color:#666} .theadContent td,.theadContent td a{font-size:20px;color:#666}</style></head><body>" + table + "</body></html>";
+  var downloadBtn = '<p class="europeanUser"><span style="border-radius:0;" class="europeanExcelIcon"></span><a class="europeanUName" href="javascript:void(0);">中奖名单已保存到CSV表格</a><a id="europeanExcelDownload" class="europeanUMsg" href="javascript:void(0);" target="_blank">下载TA</a></p>';
+  var data =
+    '\ufeff' +
+    '抽奖动态：' + window.location.href + '\n' +
+    'UP主：' + europeanSet.upName + ' 的抽奖\n' +
+    '排序,用户ID,用户名,空间链接,联系\n';
+  $.each(europeanSet.winArr, function(k, v){
+    if(v.uID === null) {
+      var uID = '无(手动添加)';
+      var spaceText = '无(手动添加)';
+    } else {
+      var uID = v.uID;
+      var spaceText = v.uSpace;
+    }
+    data += (k+1) + ',' + uID + ',' + v.uName + ',' + spaceText + ',' + v.uMsg + '\n';
+  });
 
   $('#europeanUserArr .europeanUser').html(downloadBtn);
 
-  var blob = new Blob([html], { type: "application/vnd.ms-excel" });
+  var blob = new Blob([data], { type: 'text/csv,charset=UTF-8'});
   var a = document.getElementById('europeanExcelDownload');
 
   a.href = URL.createObjectURL(blob);
 
-  a.download = europeanSet.upName + ' 的抽奖中奖名单.xls';
+  a.download = europeanSet.upName + ' 的抽奖中奖名单.csv';
 }
 
 function btnCtrl(start)
 {
+  var startColor = start ? 'ff94b1' : '666';
+  var stopColor = !start ? 'ff94b1' : '666';
   $('#europeanStartBtn').css({
-    'background-color': `#${start ? 'ff94b1' : '666'}`
+    'background-color': '#' + startColor
   });
   $('#europeanThisShitBtn').css({
-    'background-color': `#${!start ? 'ff94b1' : '666'}`
+    'background-color': '#' + stopColor
   });
   $('#europeanEndBtn').css({
-    'background-color': `#${!start ? 'ff94b1' : '666'}`
+    'background-color': '#' + stopColor
   });
   europeanSet.start = !start;
+}
+
+function domModAddUser() {
+  $('.forw-list .dynamic-list-item-wrap').each(function() {
+    var userMid = /com\/(\d*)\//g.exec($(this).find('.forw-face:eq(0) .c-pointer:eq(0)').attr('href'))[1];
+    var uData = {
+      uID: null,
+      uName: $(this).find('.item-detail:eq(0) .item-user:eq(0) a.user-name:eq(0)').text(),
+      uFace: $(this).find('.forw-face:eq(0) .c-pointer:eq(0) .forw-head:eq(0)').attr('src'),
+      uSpace: 'https://space.bilibili.com/' + userMid,
+      uMsg: 'https://message.bilibili.com/#/whisper/mid' + userMid,
+      uCom: $(this).find('.item-detail:eq(0) .text:eq(0)').html()
+    };
+    europeanSet.userArr = uniqueArr(uData, europeanSet.userArr, true);
+  });
 }

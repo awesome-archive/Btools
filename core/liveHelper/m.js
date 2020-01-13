@@ -1,4 +1,4 @@
-const LiveHelperSet = {
+var LiveHelperSet = {
   loopNum: 0,
   loopMax: 10,
   timer: null,
@@ -16,23 +16,26 @@ var BtoolsConfig = {
   miniPlayerShow: 0
 }
 
+$(document).ready(function() {
+  $('body').on('click', '.lottery-box', function() {
+    var msg = $('.link-popup-ctnr .link-popup-ctnr .link-popup-panel .popup-content-ctnr p').text();
+    setTimeout(function() {
+      $('.close-btn').click();
+    }, 1000);
+  });
+});
 
 // live助手初始化
 function liveHelperInit() {
-  var liveHelperHTML =
-    `<div id="BtoolsLiveHelper" class="item pointer">
-      <a id="BtoolsHideCtrl" href="javascript:;" target="_self">${Btools.logo()}</a>
-    </div>
-    `;
+  var liveHelperHTML = '<div id="BtoolsLiveHelper" class="item pointer"><a id="BtoolsHideCtrl" href="javascript:;" target="_self">' + Btools.logo() + '</a></div>';
   $('.supporting-info .live-skin-coloration-area:eq(0)').prepend(liveHelperHTML);
-  // console.log('liveHelper 运行');
 
   $('#BtoolsLiveHelper #BtoolsHideCtrl').HKM([
     {
       key: 86,
       continued: true,
       title: 'PK分数显示隐藏',
-      action: () => {
+      action: function() {
         if($('.process-box').length !== 0){
           if($('.process-box').is(':hidden')){
             liveHelperHide(0);

@@ -6,7 +6,7 @@
 
 chrome = chrome || browser;
 
-const VivSet = {
+var VivSet = {
   init: true,
   loopNum: 0,
   loopMax: 10,
@@ -14,6 +14,9 @@ const VivSet = {
   timerOff: false,
   eqNum: 0,
   fav: null,
+  expiredTimer: null,
+  expired: null, // 存储失效视频
+  expiredIndex: 0, // 当前正在获取信息的失效视频
   count: 0,
   pn: 1,
   isKey: false,
@@ -21,7 +24,13 @@ const VivSet = {
   tid: 0
 }
 
+var BtoolsConfig = {
+  vivFind: 0,
+  localCache: {}
+}
+
 $(document).ready(function(){
+
   $('body').on('click', '.be-pager li.be-pager-item', function(){
     VivInitLoopStart();
   });
@@ -106,6 +115,8 @@ function VivInitLoopStart() {
   VivSet.eqNum = 0;
   VivSet.loopNum = 0;
   VivSet.fav = null;
+  VivSet.expiredIndex = 0;
+  $('.BtoolsVivFinded').removeClass('BtoolsVivFinded');
   if(VivSet.timerOff) {
     VivInitLoop();
   }
@@ -117,7 +128,6 @@ function VivInitLoop()
 {
   VivSet.timerOff = false;
   VivSet.timer = setInterval(function() {
-    // console.log(VivSet.loopNum);
     VivInit();
     VivSet.loopNum++;
   }, 500);
@@ -129,6 +139,8 @@ function VivInit() {
     var coverReg = /([^\@]*\.(?:webp|jpg|png|gif))(?:\@|\_).*\.(?:webp|jpg|png|gif)?/;
     var upNameText = $(this).find('.meta-mask .meta-info .author').text();
     var upName = upNameText.substring(4,upNameText.length);
+    var title = $(this).find('.title').text();
+    var liClass = $(this).attr('class');
 
     if(VivSet.fav !== null) {
       $(this).find('a:eq(1),.meta-mask,a.disabled').HKM('clear');
@@ -137,8 +149,8 @@ function VivInit() {
         {
           'key': 85,
           'title': '打开UP主空间',
-          'action': () => {
-            window.open(`http://space.bilibili.com/${upMid}`);
+          'action': function() {
+            window.open('http://space.bilibili.com/' + upMid);
             void(0);
           }
         },
@@ -146,7 +158,7 @@ function VivInit() {
           'key': 68,
           'title': '详情信息',
           'position': 'last',
-          'action': () => {
+          'action': function() {
             media_info(index);
           },
           'parent': '.small-item'
@@ -157,8 +169,8 @@ function VivInit() {
         {
           'key': 85,
           'title': '搜索UP主',
-          'action': () => {
-            window.open(`https://search.bilibili.com/upuser?keyword=${upName}`);
+          'action': function() {
+            window.open('https://search.bilibili.com/upuser?keyword=' + upName);
             void(0);
           },
           'parent': '.small-item'
@@ -168,13 +180,14 @@ function VivInit() {
 
     if($(this).attr('class').indexOf('disabled') === -1) {
       var url = $(this).find('a.cover').attr('href');
+      var self = this;
       $(this).find('a:eq(1),.meta-mask,a.disabled').HKM([
         {
           'key': 67,
           'title': '打开封面',
           'position': 'first',
-          'action': () => {
-            window.open(coverReg.exec($(this).find('img:eq(0)').attr('src'))[1]);
+          'action': function() {
+            window.open(coverReg.exec($(self).find('img:eq(0)').attr('src'))[1]);
             void(0);
           }
         },
@@ -182,7 +195,7 @@ function VivInit() {
           'key': 86,
           'title': '打开视频',
           'position': 'first',
-          'action': () => {
+          'action': function() {
             window.open(url);
             void(0);
           }
@@ -190,6 +203,21 @@ function VivInit() {
       ]);
     } else {
 
+    }
+
+    // 失效视频 搜索视频
+    if(liClass !== undefined && liClass.indexOf('disabled') !== -1 && title != '缓存失效' && title !='已失效视频') {
+      $(this).find('a:eq(1),.meta-mask,a.disabled').HKM([
+        {
+          'key': 83,
+          'title': '搜索标题',
+          'position': 'first',
+          'action': function() {
+            window.open('https://www.baidu.com/s?wd=' + title);
+            void(0);
+          }
+        }
+      ]);
     }
 
   });
@@ -202,8 +230,15 @@ function VivInit() {
   }
 }
 
-function favJson(pn) {
-  var fid = $('.fav-item[class~=cur]').attr('fid');
+function favJson() {
+  var fid_href = $('.fav-item[class~=cur] .router-link-active').attr('href');
+  var fid_reg = /fid=(\d+)/i;
+  var fid = null;
+
+  if(fid_reg.exec(fid_href) !== null) {
+      fid = fid_reg.exec(fid_href)[1]
+  }
+
   if(fid === null) return false;
 
   if(!VivSet.isKey) VivSet.pn = Number($('.be-pager-item-active').text()); else VivSet.isKey = false;
@@ -242,27 +277,172 @@ function favJson(pn) {
     break;
   }
 
-  var data = `media_id=${fid}&pn=${VivSet.pn}&ps=20&order=${VivSet.order}&tid=${VivSet.tid}&type=0&jsonp=jsonp`;
-  var url = `https://api.bilibili.com/medialist/gateway/base/spaceDetail?${data}`;
+  var data = 'media_id=' + fid + '&pn=' + VivSet.pn + '&ps=20&order=' + VivSet.order + '&tid=' + VivSet.tid + '&type=0&jsonp=jsonp';
+  var url = 'https://api.bilibili.com/medialist/gateway/base/spaceDetail?' + data;
 
-  if(typeof chrome.app.isInstalled!=='undefined'){
-    chrome.runtime.sendMessage({
-      type: 'fetch',
-      url: url
-    },
-    json => {
-      if(json === null) {
-        VivSet.fav = null;
-        return false;
-      }
+  chrome.runtime.sendMessage({
+    type: 'fetch',
+    url: url
+  },
+  function(json) {
+    if(json === null) {
+      VivSet.fav = null;
+      VivSet.expired = null;
+      return false;
+    }
 
-      if(json.code === 0) {
-        VivSet.fav = json.data.medias;
-        VivSet.count = json.data.info.media_count;
+    if(json.code === 0) {
+      VivSet.fav = json.data.medias;
+      VivSet.count = json.data.info.media_count;
+
+      // 失效视频
+      chrome.storage.sync.get(BtoolsConfig, function(items){
+        BtoolsConfig = items;
+        // 如果设置开启
+        if(items.vivFind === 0) {
+          VivSet.expiredIndex = 0;
+          VivSet.expired = new Array;
+          if(VivSet.fav !== null) {
+            VivSet.fav.forEach(function(item, index) {
+
+              if(item.title === '已失效视频') {
+                // 如果本地有缓存
+                if(BtoolsConfig.localCache.hasOwnProperty(item.id)) {
+                  var videoInfo = BtoolsConfig.localCache[item.id];
+                  var liDisabled = $('.fav-video-list li[data-aid=' + item.id + ']');
+
+                  liDisabled.addClass('BtoolsVivFinded');
+
+                  liDisabled.find('.disabled-cover').remove();
+                  liDisabled.find('.cover img').attr({
+                    'src': videoInfo.pic + '@380w_240h_100Q_1c.webp',
+                    'alt': '图片文件失效'
+                  }).css({
+                    '-webkit-filter': 'none'
+                  });
+
+                  liDisabled.find('.title').text(videoInfo.title).css({
+                    'color': '#F66',
+                    'font-weight': '700'
+                  });
+
+                } else {
+                  // 否则查询
+                  VivSet.expired.push(item);
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+  });
+
+  if(VivSet.expired !== null && VivSet.expiredTimer === null) {
+    if($('.fav-video-list li.disabled').length == $('.fav-video-list li.BtoolsVivFinded').length) {
+      if(VivSet.expiredTimer !== null) {
+        clearInterval(VivSet.expiredTimer);
+        VivSet.expired = null;
+        VivSet.expiredTimer = null;
       }
-    });
+      return;
+    }
+    VivSet.expiredTimer = setInterval(function() {
+      var video = VivSet.expired[VivSet.expiredIndex];
+      if(video === undefined || !video.hasOwnProperty('id')) return;
+      var url = 'https://www.biliplus.com/api/view?id=' + video.id;
+      chrome.runtime.sendMessage({
+        type: 'fetch',
+        url: url
+      },
+      function(json) {
+        if(json !== null) {
+          var isPic = json.hasOwnProperty("pic");
+          var isTitle = json.hasOwnProperty("title");
+          var isCode = json.hasOwnProperty("code");
+          var liDisabled = $('.fav-video-list li[data-aid=' + video.id + ']');
+
+          if($('.BtoolsVivLoaddingBG').length === 0) {
+            liDisabled.css({
+              'position': 'relative'
+            }).append('<div class="BtoolsVivLoaddingBG"></div><div class="BtoolsVivLoadding">' + Btools.logo() + '<p class="BtoolsVivLoaddingText">正在查找···</p></div>');
+            $('.BtoolsVivLoaddingBG').css({
+              'width': liDisabled.outerWidth(),
+              'height': liDisabled.outerHeight()
+            });
+            $('.BtoolsVivLoadding').css({
+              'left': (liDisabled.outerWidth() / 2) - ($('.BtoolsVivLoadding').outerWidth() / 2)
+            });
+          }
+
+          if(isPic) {
+            liDisabled.find('.disabled-cover').remove();
+            liDisabled.find('.cover img').attr({
+              'src': json.pic + '@380w_240h_100Q_1c.webp',
+              'alt': '图片文件失效'
+            }).css({
+              '-webkit-filter': 'none'
+            });
+          }
+          if(isTitle) {
+            liDisabled.find('.title').text(json.title).css({
+              'color': '#F66',
+              'font-weight': '700'
+            });
+
+            // 失效视频 搜索视频
+            liDisabled.find('a:eq(1),.meta-mask,a.disabled').HKM([
+              {
+                'key': 83,
+                'title': '搜索标题',
+                'position': 'first',
+                'action': function() {
+                  window.open('https://www.baidu.com/s?wd=' + json.title);
+                  void(0);
+                }
+              }
+            ]);
+          }
+          if(isCode && json.code === -404) {
+            liDisabled.find('.title').text('缓存失效').css({
+              'color': '#F66',
+              'font-weight': '700'
+            });
+          }
+          if(isPic || isTitle || (isCode && json.code !== -503)) {
+            setTimeout(function() {
+              liDisabled.find('.BtoolsVivLoadding,.BtoolsVivLoaddingBG').remove();
+            }, 1000);
+            liDisabled.addClass('BtoolsVivFinded');
+
+            // 添加到插件本地存储
+            addLocalCache(video.id, {
+              title: isTitle ? json.title : '缓存失效',
+              pic: isPic ? json.pic : ''
+            });
+
+            VivSet.expiredIndex++;
+          }
+          if(VivSet.expiredIndex == $('.fav-video-list li.disabled').length) {
+
+            clearInterval(VivSet.expiredTimer);
+            VivSet.expiredTimer = null;
+          }
+        }
+      });
+    }, 2000);
   }
 }
+
+function addLocalCache(avNum, videoInfo) {
+  chrome.storage.sync.get(BtoolsConfig.localCache, function(items) {
+    BtoolsConfig.localCache = items;
+  });
+  BtoolsConfig.localCache[avNum] = videoInfo;
+  chrome.storage.sync.set(BtoolsConfig);
+}
+
+
 
 function media_info(mid) {
   if(VivSet.fav === null) return false;
@@ -270,42 +450,42 @@ function media_info(mid) {
   var f = VivSet.fav[mid];
   if(f.page > 1) {
     var pagesHTML = '';
-    f.pages.forEach((item, index) => {
-      pagesHTML += `<p><span>[P${item.page}]</span> ${item.title}</p>`;
+    f.pages.forEach(function(item, index) {
+      pagesHTML += '<p><span>[P' + item.page + ']</span> ' + item.title + '</p>';
     });
   } else if(f.pages[0].title !== '') {
-    var pageName = `<p><span>[P1]</span> ${f.pages[0].title}</p>`;
+    var pageName = '<p><span>[P1]</span> ' + f.pages[0].title + '</p>';
   }
+
+  // https://www.biliplus.com/api/view?id=12656941
   var avNum = /video\/(\d+)/i.exec(f.link)[1];
-  if(f.title === '已失效视频') {
-    var videoName = f.page > 1 ? '希望通过简介和分P名帮你想起来' : f.title;
-    var bilibilijjText = '去哔哩哔哩唧唧看看有没有资源？';
-  } else {
-    var bilibilijjText = '跳转到哔哩哔哩唧唧下载？';
-  }
-  var html = `
-    <div id="vivWindow">
-      <p class="vivMediaInfoTitle">${videoName || f.title || ''}</p>
+  var avTextNum = 'av' + avNum;
 
-      <p class="vivMediaInfoContent">${f.intro}</p>
+  var content = pagesHTML || pageName || '';
+  var title = avTextNum || f.title || '';
+  var html =
+    '<div id="vivWindow">'+
+      '<p class="vivMediaInfoTitle">' + title + '</p>'+
 
-      <p class="vivMediaCount">共${f.page}P</p>
-      <div class="vivP">
-        ${pagesHTML || pageName || ''}
-      </div>
+      '<p class="vivMediaInfoContent">' + f.intro + '</p>'+
 
-      <p>收藏于 ${getTime(f.fav_time)}</p>
+      '<p class="vivMediaCount">共' + f.page + 'P</p>'+
+      '<div class="vivP">'+
+        content+
+      '</div>'+
 
-      <p class="vivBilibilijj"><a href="https://www.jijidown.com/video/av${avNum}" target="_blank">${bilibilijjText}</a></p>
+      '<p>收藏于 ' + getTime(f.fav_time) + '</p>'+
 
-      <a class="vivClose" href="javascript:void(0);">×</a>
+      '<p class="vivBilibiliCache">缓存：<a href="https://www.jijidown.com/video/av' + avNum + '" target="_blank">哔哩哔哩唧唧</a>、<a href="https://www.biliplus.com/video/av' + avNum + '" target="_blank">biliplus</a></p>'+
 
-      <div class="vivBG"></div>
-    </div>
-  `;
+      '<a class="vivClose" href="javascript:void(0);">×</a>'+
+
+      '<div class="vivBG"></div>'+
+    '</div>';
+
   $('body').append(html).find('#vivWindow').css({
-    'top': $(document).scrollTop() + 50,
-    'left': ($(document).width() / 2) - ($('#vivWindow').outerWidth() / 2)
+    'top': ($(window).height() / 2) - ($('#vivWindow').outerHeight() / 2),
+    'left': ($(window).width() / 2) - ($('#vivWindow').outerWidth() / 2)
   });
   $('#vivWindow .vivClose').click(function(){
     $('#vivWindow').remove();

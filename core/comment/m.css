@@ -113,8 +113,7 @@
 }
 
 .BtoolsUserHead,
-.BtoolsUserNickname,
-.BtoolsFloor {
+.BtoolsUserNickname {
   position: absolute;
   top: -40px;
 }
@@ -144,11 +143,6 @@
   color: #FB7299 !important;
 }
 
-.BtoolsFloor {
-  color: #FFF;
-  right: 10px;
-}
-
 .BtoolsUserComment {
   margin-top: 40px;
   font-size: 16px;
@@ -159,4 +153,50 @@
 .BtoolsCommentKeyword {
   background-color: #FF0 !important;
   color: #666 !important;
+}
+
+.BtoolsCommentLocation {
+  position: absolute;
+  top: -36px;
+  right: 2px;
+  color: #FFF;
+  font-size: 14px;
+}
+
+#btoolsAddEmojiText {
+  position: absolute;
+  top: -4px;
+  left: 50px;
+  padding-left: 3px;
+  width: 160px;
+  height: 20px;
+  font-size: 12px;
+}
+
+.btools-add-text {
+  color: #00a1d6 !important;
+}
+
+.BtoolsFindComment {
+  background-color: #FF6 !important;
+}
+
+/*定义滚动条高宽及背景 高宽分别对应横竖滚动条的尺寸*/
+.BtoolsSearchListBox::-webkit-scrollbar
+{
+  width: 5px;  /*滚动条宽度*/
+  height: 5px;  /*滚动条高度*/
+}
+
+/*定义滚动条轨道 内阴影*/
+.BtoolsSearchListBox::-webkit-scrollbar-track
+{
+  -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+  background-color: #CCC;/*滚动条的背景颜色*/
+}
+
+/*定义滑块 内阴影+圆角*/
+.BtoolsSearchListBox::-webkit-scrollbar-thumb
+{
+  background-color: #666;  /*滚动条的背景颜色*/
 }

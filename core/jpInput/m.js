@@ -1,4 +1,4 @@
-const K = {
+var K = {
   /* 五十音 */
   /* A */ 65: ['あ', 'ア'], /* I */　73: ['い', 'イ'], /* U */　85: ['う', 'ウ'], /* E */　69: ['え', 'エ'], /* O */　79: ['お', 'オ'],
   /* K */ 75: { 65: ['か', 'カ'], 73: ['き', 'キ'], 85: ['く', 'ク'], 69: ['け', 'ケ'], 79: ['こ', 'コ'] },
@@ -54,7 +54,7 @@ const K = {
   189: ['ー']
 }
 
-const nihongo = {
+var nihongo = {
   on: false,
   text: null,
   key: K,
@@ -83,10 +83,11 @@ $(document).ready(function(){
     e = e || window.event || arguments.callee.caller.arguments[0];
     nihongo.text = $(this);
 
-    if(nihongo.isComKey && e.keyCode === 77) {
+    if(nihongo.isComKey && e.keyCode === 123) {
       nihongo.on = !nihongo.on;
       $('body .jpinputMsg').remove();
-      $('body').append(`<div class="jpinputMsg">${nihongo.on ? 'ON' : 'OFF'}</div>`).find('.jpinputMsg').delay(500).fadeOut();;
+      var status = nihongo.on ? 'ON' : 'OFF';
+      $('body').append('<div class="jpinputMsg">' + status + '</div>').find('.jpinputMsg').delay(500).fadeOut();
     }
     if(e.keyCode === 81 && nihongo.isComKey) {
       nihongo.isKatagana = !nihongo.isKatagana;
